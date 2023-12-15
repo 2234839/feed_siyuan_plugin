@@ -9,14 +9,14 @@ export default class OceanPress extends Plugin {
   name = "feed plugin";
   async onload() {
     /** 解析并注册定时任务 */
-
-    // 使用Cron表达式调度任务
     const feedBlocks = await getAllFeedBlocks();
     feedBlocks.map(async (block) => {
       const feedDoc = await parseFeedBlock(block.block_id);
       if (feedDoc.attr.feed) {
+        const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
+        console.log(`注册 cron job 表达式:${cron}`, feedDoc);
 
-        scheduleCronJob(feedDoc.attr.cron?.value ?? DEFAULT_CRON, async () => {
+        scheduleCronJob(cron, async () => {
           const feed = await parseFeedByUrl(feedDoc.attr.feed!.value);
           feed.entryList
             .sort((a, b) => {
@@ -148,16 +148,15 @@ async function parseFeedBlock(block_id: string) {
   }
 
   // 查找所有entry子块
-  const childBlock = (
+  feedObj.entryBlock = (
     await sql(
       `SELECT * FROM blocks
       WHERE
-       parent_id="${block_id}" AND markdown LIKE "* [ ] #%" OR markdown LIKE "* [X] #%"
+       parent_id="${block_id}" AND (markdown LIKE "* [ ] #%" OR markdown LIKE "* [X] #%")
       ORDER BY created DESC
       LIMIT ${MAX_FEED_NUM}`,
     )
   ).data as block[];
-  feedObj.entryBlock = childBlock;
 
   return feedObj;
 
