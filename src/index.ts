@@ -1,4 +1,4 @@
-import { type IWebSocketData, Plugin, fetchPost } from "siyuan";
+import { type IWebSocketData, Plugin, fetchPost, ICommandOption } from "siyuan";
 import { removeAllCronJob, scheduleCronJob } from "./libs/cron";
 
 /** 对于一个 feed 最多只处理 100 条数据 */
@@ -7,6 +7,8 @@ const DEFAULT_CRON = "1 * * * *";
 
 export default class OceanPress extends Plugin {
   name = "feed plugin";
+  /** 拉取feed链接并进行解析的函数 */
+  _feedFetch: (() => void)[] = [];
   async onload() {
     /** 解析并注册定时任务 */
     const feedBlocks = await getAllFeedBlocks();
@@ -15,8 +17,7 @@ export default class OceanPress extends Plugin {
       if (feedDoc.attr.feed) {
         const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
         console.log(`注册 cron job 表达式:${cron}`, feedDoc);
-
-        scheduleCronJob(cron, async () => {
+        const feedFetch = async () => {
           const feed = await parseFeedByUrl(feedDoc.attr.feed!.value);
           feed.entryList
             .sort((a, b) => {
@@ -49,8 +50,18 @@ export default class OceanPress extends Plugin {
                 });
               }
             });
-        });
+        };
+        scheduleCronJob(cron, feedFetch);
+        this._feedFetch.push(feedFetch);
       }
+    });
+    this.addCommand({
+      hotkey: "",
+      langKey: "_feedFetch",
+      langText: "立刻对所有feed进行一次拉取",
+      callback: () => {
+        this._feedFetch.forEach((feedFetch) => feedFetch());
+      },
     });
   }
   async onunload() {
