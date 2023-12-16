@@ -119,7 +119,7 @@ async function parseFeedByUrl(url: string) {
             published: elText(entry, "published"),
             updated: elText(entry, "updated"),
             summary: elText(entry, "summary"),
-            link: entry.querySelector("link")?.getAttribute("href"),
+            link: xssDefend(entry.querySelector("link")?.getAttribute("href")),
           } as entry;
         }),
       };
@@ -127,7 +127,12 @@ async function parseFeedByUrl(url: string) {
     });
   return feed;
   function elText(el: Element | Document, selectors: string) {
-    return el.querySelector(selectors)?.innerHTML;
+    return xssDefend(el.querySelector(selectors)?.innerHTML);
+  }
+  /** 简单的对输入进行过滤，防止可能存在的 xss 攻击 */
+  function xssDefend(s?: string | null): string {
+    if (!s) return "";
+    return new DOMParser().parseFromString(s, "text/html").documentElement.textContent ?? "";
   }
 }
 /** 从块id 解析 feed 对象 */
