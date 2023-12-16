@@ -1,8 +1,9 @@
-import { type IWebSocketData, Plugin, fetchPost, ICommandOption } from "siyuan";
+import { type IWebSocketData, Plugin, fetchPost } from "siyuan";
 import { removeAllCronJob, scheduleCronJob } from "./libs/cron";
 
 /** 对于一个 feed 最多只处理 100 条数据 */
 const MAX_FEED_NUM = 100;
+const SUMMARY_LENGTH = 150;
 const DEFAULT_CRON = "1 * * * *";
 
 export default class OceanPress extends Plugin {
@@ -19,6 +20,11 @@ export default class OceanPress extends Plugin {
         console.log(`注册 cron job 表达式:${cron}`, feedDoc);
         const feedFetch = async () => {
           const feed = await parseFeedByUrl(feedDoc.attr.feed!.value);
+          if (feed instanceof Error) {
+            throw feed;
+          }
+          console.log(feed);
+
           feed.entryList
             .sort((a, b) => {
               return Number(b.updated) - Number(a.updated);
@@ -38,15 +44,26 @@ export default class OceanPress extends Plugin {
             )
             .forEach(async (entry) => {
               console.log("insertBlock ", entry);
+              `<li  class="protyle-task protyle-task--done"><input checked="" disabled="" type="checkbox">
+<h6 ><a href="http://www.ruanyifeng.com/blog/2023/12/weekly-issue-280.html">科技爱好者周刊（第 280 期）：机器点餐与宅文化</a></h6>
+  <ul>
+    <li><p>published:2023-12-01T00:14:11Z</p></li>
+    <li><p>updated:2023-12-14T03:45:39Z</p></li>
+  </ul>
+  <blockquote>
+    <p>这里记录每周值得分享的科技内容，周五发布。...</p>
+  </blockquote>
+</li>`;
               if (feedDoc.attrBlock?.id) {
+                let data = `* [ ] ###### [${entry.title ?? entry.link}](${entry.link})\n`;
+                if (entry.published) data += `    - published:${entry.published}\n`;
+                if (entry.updated) data += `    - updated:${entry.updated}\n`;
+                if (entry.summary) data += `    > ${entry.summary}\n`;
+                data += `  `;
                 insertBlock({
                   dataType: "markdown",
                   previousID: feedDoc.attrBlock.id,
-                  data: `* [ ] ###### [${entry.title ?? entry.link}](${entry.link})\n\
-    - published:${entry.published}\n\
-    - updated:${entry.updated}\n\
-    > ${entry.summary}
-  `,
+                  data,
                 });
               }
             });
@@ -102,6 +119,12 @@ interface feed {
   /** 已经加载的笔记 */
   entryBlock: block[];
 }
+interface feedByUrl {
+  title: string;
+  subtitle: string;
+  updated: string;
+  entryList: entry[];
+}
 interface entry {
   title?: string;
   published?: string;
@@ -110,7 +133,7 @@ interface entry {
   link?: string | null;
 }
 /** 从 rss 链接解析 feed 对象 */
-async function parseFeedByUrl(url: string) {
+async function parseFeedByUrl(url: string): Promise<feedByUrl | Error> {
   url = url.trim();
   const feed = await fetch(url)
     .then((el) => el.text())
@@ -120,30 +143,58 @@ async function parseFeedByUrl(url: string) {
       return xmlDoc;
     })
     .then((dom) => {
-      const data = {
-        title: elText(dom, "feed > title"),
-        subtitle: elText(dom, "feed > subtitle"),
-        updated: elText(dom, "feed > updated"),
-        entryList: Array.from(dom.querySelectorAll("feed > entry")).map((entry) => {
-          return {
-            title: elText(entry, "title"),
-            published: elText(entry, "published"),
-            updated: elText(entry, "updated"),
-            summary: elText(entry, "summary"),
-            link: xssDefend(entry.querySelector("link")?.getAttribute("href")),
-          } as entry;
-        }),
-      };
-      return data;
+      if (dom.querySelector("feed")) {
+        return {
+          title: elText(dom, "feed > title"),
+          subtitle: elText(dom, "feed > subtitle"),
+          updated: elText(dom, "feed > updated"),
+          entryList: Array.from(dom.querySelectorAll("feed > entry")).map((entry) => {
+            return {
+              title: elText(entry, "title"),
+              published: elText(entry, "published"),
+              updated: elText(entry, "updated"),
+              summary: elText(entry, "summary"),
+              link: xssDefend(entry.querySelector("link")?.getAttribute("href")),
+            } as entry;
+          }),
+        };
+      } else if (dom.querySelector("channel")) {
+        return {
+          title: elText(dom, "channel > title"),
+          subtitle: elText(dom, "channel > description"),
+          updated: elText(dom, "channel > lastBuildDate"),
+          entryList: Array.from(dom.querySelectorAll("channel > item")).map((entry) => {
+            return {
+              title: elText(entry, "title"),
+              published: elText(entry, "pubDate"),
+              updated: elText(entry, "updated"),
+              summary: elText(entry, "description"),
+              link: elText(entry, "link"),
+            } as entry;
+          }),
+        };
+      } else {
+        console.log("rss解析失败", url);
+        return new Error(
+          `未知的格式，可以将此消息发送给开发者 admin@shenzilong.cn (feed_siyuan_plugin):${url}`,
+        );
+      }
     });
   return feed;
   function elText(el: Element | Document, selectors: string) {
-    return xssDefend(el.querySelector(selectors)?.innerHTML);
+    return xssDefend(el.querySelector(selectors)?.textContent);
   }
   /** 简单的对输入进行过滤，防止可能存在的 xss 攻击 */
   function xssDefend(s?: string | null): string {
     if (!s) return "";
-    return new DOMParser().parseFromString(s, "text/html").documentElement.textContent ?? "";
+    let filteredStr = (
+      new DOMParser().parseFromString(s, "text/html").documentElement.textContent ?? ""
+    ).replace(/** 过滤特殊标记符 */ /[<>\[\]\n]/g, "");
+    /** 避免过长的摘要 */
+    if (filteredStr.length > SUMMARY_LENGTH) {
+      filteredStr = filteredStr.substring(0, SUMMARY_LENGTH) + "...";
+    }
+    return filteredStr;
   }
 }
 /** 从块id 解析 feed 对象 */
@@ -209,7 +260,7 @@ async function getAllFeedBlocks() {
 }
 
 function insertBlock(par: {
-  dataType: "markdown";
+  dataType: "markdown" | "dom";
   data: string;
   /** 下面三个id 三选一 */
   nextID?: string;
@@ -217,6 +268,7 @@ function insertBlock(par: {
   parentID?: string;
 }): Promise<IWebSocketData> {
   return new Promise((r, _j) => {
+    /** https://github.com/siyuan-note/siyuan/blob/master/API_zh_CN.md#%E6%8F%92%E5%85%A5%E5%9D%97 */
     fetchPost("http://127.0.0.1:6806/api/block/insertBlock", par, (res) => {
       r(res);
     });
