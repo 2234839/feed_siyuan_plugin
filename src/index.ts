@@ -6,7 +6,7 @@ const MAX_FEED_NUM = 100;
 const SUMMARY_LENGTH = 150;
 const DEFAULT_CRON = "1 * * * *";
 
-export default class OceanPress extends Plugin {
+export default class FeedPlugin extends Plugin {
   name = "feed plugin";
   /** 拉取feed链接并进行解析的函数 */
   _feedFetch: (() => void)[] = [];
@@ -44,16 +44,6 @@ export default class OceanPress extends Plugin {
             )
             .forEach(async (entry) => {
               console.log("insertBlock ", entry);
-              `<li  class="protyle-task protyle-task--done"><input checked="" disabled="" type="checkbox">
-<h6 ><a href="http://www.ruanyifeng.com/blog/2023/12/weekly-issue-280.html">科技爱好者周刊（第 280 期）：机器点餐与宅文化</a></h6>
-  <ul>
-    <li><p>published:2023-12-01T00:14:11Z</p></li>
-    <li><p>updated:2023-12-14T03:45:39Z</p></li>
-  </ul>
-  <blockquote>
-    <p>这里记录每周值得分享的科技内容，周五发布。...</p>
-  </blockquote>
-</li>`;
               if (feedDoc.attrBlock?.id) {
                 let data = `* [ ] ###### [${entry.title ?? entry.link}](${entry.link})\n`;
                 if (entry.published) data += `    - published:${entry.published}\n`;
@@ -269,7 +259,7 @@ function insertBlock(par: {
 }): Promise<IWebSocketData> {
   return new Promise((r, _j) => {
     /** https://github.com/siyuan-note/siyuan/blob/master/API_zh_CN.md#%E6%8F%92%E5%85%A5%E5%9D%97 */
-    fetchPost("http://127.0.0.1:6806/api/block/insertBlock", par, (res) => {
+    fetchPost("/api/block/insertBlock", par, (res) => {
       r(res);
     });
   });
