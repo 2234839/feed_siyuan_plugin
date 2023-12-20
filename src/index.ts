@@ -125,51 +125,67 @@ interface entry {
 /** 从 rss 链接解析 feed 对象 */
 async function parseFeedByUrl(url: string): Promise<feedByUrl | Error> {
   url = url.trim();
-  const feed = await fetch(url)
-    .then((el) => el.text())
-    .then((data) => {
-      var parser = new DOMParser();
-      var xmlDoc = parser.parseFromString(data, "text/xml");
-      return xmlDoc;
-    })
-    .then((dom) => {
-      if (dom.querySelector("feed")) {
-        return {
-          title: elText(dom, "feed > title"),
-          subtitle: elText(dom, "feed > subtitle"),
-          updated: elText(dom, "feed > updated"),
-          entryList: Array.from(dom.querySelectorAll("feed > entry")).map((entry) => {
-            return {
-              title: elText(entry, "title"),
-              published: elText(entry, "published"),
-              updated: elText(entry, "updated"),
-              summary: elText(entry, "summary"),
-              link: xssDefend(entry.querySelector("link")?.getAttribute("href")),
-            } as entry;
-          }),
-        };
-      } else if (dom.querySelector("channel")) {
-        return {
-          title: elText(dom, "channel > title"),
-          subtitle: elText(dom, "channel > description"),
-          updated: elText(dom, "channel > lastBuildDate"),
-          entryList: Array.from(dom.querySelectorAll("channel > item")).map((entry) => {
-            return {
-              title: elText(entry, "title"),
-              published: elText(entry, "pubDate"),
-              updated: elText(entry, "updated"),
-              summary: elText(entry, "description"),
-              link: elText(entry, "link"),
-            } as entry;
-          }),
-        };
-      } else {
-        console.log("rss解析失败", url);
-        return new Error(
-          `未知的格式，可以将此消息发送给开发者 admin@shenzilong.cn (feed_siyuan_plugin):${url}`,
-        );
-      }
-    });
+  const feed = new Promise<Document>((r, _j) => {
+    fetchPost(
+      "/api/network/forwardProxy",
+      {
+        url: url,
+        method: "GET",
+        timeout: 7000,
+        contentType: "application/xml",
+        headers: [],
+        payload: {},
+        payloadEncoding: "text",
+        responseEncoding: "text",
+      },
+      (res) => {
+        if (res.code !== 0 && res.data.status !== 200) {
+          _j(new Error(res.msg));
+        } else {
+          var parser = new DOMParser();
+          var xmlDoc = parser.parseFromString(res.data.body, "text/xml");
+          r(xmlDoc);
+        }
+      },
+    );
+  }).then((dom) => {
+    if (dom.querySelector("feed")) {
+      return {
+        title: elText(dom, "feed > title"),
+        subtitle: elText(dom, "feed > subtitle"),
+        updated: elText(dom, "feed > updated"),
+        entryList: Array.from(dom.querySelectorAll("feed > entry")).map((entry) => {
+          return {
+            title: elText(entry, "title"),
+            published: elText(entry, "published"),
+            updated: elText(entry, "updated"),
+            summary: elText(entry, "summary"),
+            link: xssDefend(entry.querySelector("link")?.getAttribute("href")),
+          } as entry;
+        }),
+      };
+    } else if (dom.querySelector("channel")) {
+      return {
+        title: elText(dom, "channel > title"),
+        subtitle: elText(dom, "channel > description"),
+        updated: elText(dom, "channel > lastBuildDate"),
+        entryList: Array.from(dom.querySelectorAll("channel > item")).map((entry) => {
+          return {
+            title: elText(entry, "title"),
+            published: elText(entry, "pubDate"),
+            updated: elText(entry, "updated"),
+            summary: elText(entry, "description"),
+            link: elText(entry, "link"),
+          } as entry;
+        }),
+      };
+    } else {
+      console.log("rss解析失败", url);
+      return new Error(
+        `未知的格式，可以将此消息发送给开发者 admin@shenzilong.cn (feed_siyuan_plugin):${url}`,
+      );
+    }
+  });
   return feed;
   function elText(el: Element | Document, selectors: string) {
     return xssDefend(el.querySelector(selectors)?.textContent);
@@ -268,7 +284,7 @@ function insertBlock(par: {
 function sql(stmt: string): Promise<IWebSocketData> {
   return new Promise((r, _j) => {
     fetchPost(
-      "http://127.0.0.1:6806/api/query/sql",
+      "/api/query/sql",
       {
         stmt,
       },
