@@ -19,7 +19,11 @@ export default class FeedPlugin extends Plugin {
         const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
         console.log(`注册 cron job 表达式:${cron}`, feedDoc);
         const feedFetch = async () => {
-          const feed = await parseFeedByUrl(feedDoc.attr.feed!.value);
+          const timeout = Number(feedDoc.attr.timeout?.value);
+          const feed = await parseFeedByUrl(
+            feedDoc.attr.feed!.value,
+            timeout >= 3_000 ? timeout : undefined,
+          );
           if (feed instanceof Error) {
             throw feed;
           }
@@ -74,6 +78,7 @@ export default class FeedPlugin extends Plugin {
   async onunload() {
     /** 取消注册的定时任务 */
     removeAllCronJob();
+    this.commands = [];
   }
 }
 interface block {
@@ -104,6 +109,7 @@ interface feed {
     /** 订阅源 */
     feed?: { value: string; block: block };
     cron?: { value: string; block: block };
+    timeout?: { value: string; block: block };
   };
   attrBlock?: block;
   /** 已经加载的笔记 */
@@ -123,7 +129,7 @@ interface entry {
   link?: string | null;
 }
 /** 从 rss 链接解析 feed 对象 */
-async function parseFeedByUrl(url: string): Promise<feedByUrl | Error> {
+async function parseFeedByUrl(url: string, timeout = 10_000): Promise<feedByUrl | Error> {
   url = url.trim();
   const feed = new Promise<Document>((r, _j) => {
     fetchPost(
@@ -131,7 +137,7 @@ async function parseFeedByUrl(url: string): Promise<feedByUrl | Error> {
       {
         url: url,
         method: "GET",
-        timeout: 7000,
+        timeout,
         contentType: "application/xml",
         headers: [],
         payload: {},
