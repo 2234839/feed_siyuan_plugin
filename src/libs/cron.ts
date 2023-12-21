@@ -36,6 +36,8 @@ export function scheduleCronJob(cronExpression: string, taskFunction: () => void
   taskID.push(id);
 }
 export function removeAllCronJob() {
+  console.log(`移除所有定时任务,数量:${taskID.length}`);
+
   taskID.forEach((id) => clearInterval(id));
   taskID = [];
 }
