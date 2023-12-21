@@ -11,39 +11,40 @@ export default class FeedPlugin extends Plugin {
   name = "feed plugin";
   /** 拉取feed链接并进行解析的函数 */
   _feedFetch: (() => void)[] = [];
-  _jobs: { [id: string]: Function } = {};
   async onload() {
     this.addCommand({
       hotkey: "",
       langKey: "_feedFetch",
       langText: "立刻对所有feed进行一次拉取",
-      callback: () => {
-        this.registerAllFeed();
+      callback: async () => {
+        await this.registerAllFeed();
         this._feedFetch.forEach((feedFetch) => feedFetch());
       },
     });
     this.registerAllFeed();
   }
   async registerAllFeed() {
+    this._feedFetch = [];
     removeAllCronJob();
-    this._jobs = {};
 
     /** 解析并注册定时任务 */
     const feedBlocks = await getAllFeedBlocks();
-    feedBlocks.map(async (block) => {
-      const feedDoc = await parseFeedBlock(block.block_id);
-      if (feedDoc.attr.feed) {
-        const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
-        console.log(`注册 cron job 表达式:${cron} by ${feedDoc.attr.feed.value}`, feedDoc);
-        const feedFetch = async () => {
-          this.feedFetch(block.block_id);
-        };
-        scheduleCronJob(cron, feedFetch);
-        this._feedFetch.push(feedFetch);
-      } else {
-        console.log(block, "无法读取 feed.attr.feed 请对照文档进行设定 feed");
-      }
-    });
+    return Promise.all(
+      feedBlocks.map(async (block) => {
+        const feedDoc = await parseFeedBlock(block.block_id);
+        if (feedDoc.attr.feed) {
+          const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
+          console.log(`注册 cron job 表达式:${cron} by ${feedDoc.attr.feed.value}`, feedDoc);
+          const feedFetch = async () => {
+            this.feedFetch(block.block_id);
+          };
+          scheduleCronJob(cron, feedFetch);
+          this._feedFetch.push(feedFetch);
+        } else {
+          console.log(block, "无法读取 feed.attr.feed 请对照文档进行设定 feed");
+        }
+      }),
+    );
   }
   async feedFetch(feedId: string) {
     const feedDoc = await parseFeedBlock(feedId);
@@ -186,7 +187,8 @@ async function parseFeed(feedDoc: feed): Promise<feedByUrl | Error> {
   });
   if (feedDoc.attr.customParse?.value) {
     const customParseFun = eval(feedDoc.attr.customParse?.value) as customParse;
-    return await customParseFun(feedDoc.attr, resText, { xssDefend, elText });
+    const res = await customParseFun(feedDoc.attr, resText, { xssDefend, elText });
+    return res;
   }
   const parser = new DOMParser();
   const dom = parser.parseFromString(resText, "text/xml");
