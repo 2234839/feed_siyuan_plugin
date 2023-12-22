@@ -8,7 +8,6 @@ const DEFAULT_CRON = "1 * * * *";
 const FETCH_TIMEOUT = 10_000;
 
 export default class FeedPlugin extends Plugin {
-  name = "feed plugin";
   /** 拉取feed链接并进行解析的函数 */
   _feedFetch: (() => void)[] = [];
   async onload() {

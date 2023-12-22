@@ -15,20 +15,20 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^2.5.3",
     "@tsconfig/svelte": "^4.0.1",
-    "@types/node": "^20.10.4",
-    "eslint": "^8.55.0",
+    "@types/node": "^20.10.5",
+    "eslint": "^8.56.0",
     "fast-glob": "^3.3.2",
     "glob": "^7.2.3",
     "minimist": "^1.2.8",
     "rollup-plugin-livereload": "^2.0.5",
     "sass": "^1.69.5",
-    "siyuan": "^0.8.3",
+    "siyuan": "^0.8.9",
     "svelte": "^3.59.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "vite": "^4.5.1",
     "vite-plugin-static-copy": "^0.15.0",
-    "vite-plugin-zip-pack": "^1.0.6"
+    "vite-plugin-zip-pack": "^1.0.7"
   },
   "dependencies": {
     "html2canvas": "^1.4.1"
