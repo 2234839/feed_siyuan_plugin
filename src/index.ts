@@ -68,10 +68,11 @@ export default class FeedPlugin extends Plugin {
         );
         return s;
       });
-    console.log(
-      `${feedDoc.attr.feed?.value} 共 ${feed.entryList.length} 条数据，新增 ${insertEntry.length} 条`,
-    );
-
+    const msg = `${feedDoc.attr.feed?.value} 共 ${feed.entryList.length} 条数据，新增 ${insertEntry.length} 条`;
+    console.log(msg);
+    fetchPost("/api/notification/pushMsg", {
+      msg,
+    });
     insertEntry.forEach(async (entry) => {
       console.log("insertBlock ", entry);
       if (feedDoc.attrBlock?.id) {
