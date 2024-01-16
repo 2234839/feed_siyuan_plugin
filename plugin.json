@@ -2,7 +2,7 @@
   "name": "feed",
   "author": "崮生_子虚",
   "url": "https://github.com/2234839/feed_siyuan_plugin",
-  "version": "0.0.10",
+  "version": "1.1.11",
   "minAppVersion": "2.10.3",
   "backends": ["all"],
   "frontends": ["all"],
