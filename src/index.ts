@@ -28,16 +28,16 @@ export default class FeedPlugin extends Plugin {
     return Promise.all(
       feedBlocks.map(async (block) => {
         const feedDoc = await parseFeedBlock(block.block_id);
-        if (feedDoc.attr.feed) {
-          const cron = feedDoc.attr.cron?.value ?? DEFAULT_CRON;
-          console.log(`注册 cron job 表达式:${cron} by ${feedDoc.attr.feed.value}`, feedDoc);
+        if (feedDoc.getAttr("feed")) {
+          const cron = feedDoc.getAttr("cron") ?? DEFAULT_CRON;
+          console.log(`注册 cron job 表达式:${cron} by ${cron}`, feedDoc);
           const feedFetch = async () => {
             this.feedFetch(block.block_id);
           };
           scheduleCronJob(cron, feedFetch);
           this._feedFetch.push(feedFetch);
         } else {
-          console.log(block, "无法读取 feed.attr.feed 请对照文档进行设定 feed");
+          console.log(block, "没有读取到 feed 属性，请对照文档进行设定 feed");
         }
       }),
     );
@@ -65,7 +65,9 @@ export default class FeedPlugin extends Plugin {
         );
         return s;
       });
-    const msg = `feed:${feedDoc.attr.feed?.value} 共 ${feed.entryList.length} 条数据，新增 ${insertEntry.length} 条`;
+    const msg = `feed:${feedDoc.getAttr("feed")} 共 ${feed.entryList.length} 条，新增 ${
+      insertEntry.length
+    } 条`;
     console.log(msg);
     fetchPost("/api/notification/pushMsg", {
       msg,

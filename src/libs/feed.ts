@@ -1,5 +1,5 @@
 import { fetchPost } from "siyuan";
-import { attributes } from "./siyuan_api";
+import { attributes, get_av_map } from "./siyuan_api";
 import { sqlQuery } from "./siyuan_api";
 import { FETCH_TIMEOUT, MAX_FEED_NUM, SUMMARY_LENGTH } from "@/libs/const";
 
@@ -40,7 +40,12 @@ interface feed {
   attrBlock?: block;
   /** 已经加载的笔记 */
   entryBlock: block[];
+  /** 数据库属性视图中的属性,优先级低于 attr  */
+  av_attr: { [key in keyof feed["attr"]]: string };
+  /** 负责优先级计算 */
+  getAttr(key: keyof feed["attr"]): string | undefined;
 }
+
 interface feedByUrl {
   title: string;
   subtitle: string;
@@ -57,7 +62,11 @@ interface entry {
 /** 用户自定义解析函数 */
 interface customParse {
   (
-    attr: feed["attr"],
+    /**
+     * v1.1.11 破坏性更新，由 {@link feed.attr} 改为 {@link feed}
+     * 这是因为添加了 {@link feed.av_attr} , 原来的方式无法获取到此属性。
+     * */
+    attr: feed,
     resText: string,
     util: {
       xssDefend: typeof xssDefend;
@@ -65,11 +74,13 @@ interface customParse {
     },
   ): feedByUrl;
 }
-/** 解析 feed 对象 */
+/** 解析 feed 对象
+ * 处理函数 {@link parseFeedBlock} 的产物
+ */
 export async function parseFeed(feedDoc: feed): Promise<feedByUrl | Error> {
-  let timeout = Number(feedDoc.attr.timeout?.value);
+  let timeout = Number(feedDoc.getAttr("timeout"));
   timeout = timeout >= 3000 ? timeout : FETCH_TIMEOUT;
-  const url = feedDoc.attr.feed?.value.trim();
+  const url = feedDoc.getAttr("feed")?.trim();
 
   const resText = await new Promise<string>((r, j) => {
     fetchPost(
@@ -93,9 +104,10 @@ export async function parseFeed(feedDoc: feed): Promise<feedByUrl | Error> {
       },
     );
   });
-  if (feedDoc.attr.customParse?.value) {
-    const customParseFun = eval(feedDoc.attr.customParse?.value) as customParse;
-    const res = await customParseFun(feedDoc.attr, resText, { xssDefend, elText });
+  const customCode = feedDoc.getAttr("customParse");
+  if (customCode) {
+    const customParseFun = eval(customCode) as customParse;
+    const res = await customParseFun(feedDoc, resText, { xssDefend, elText });
     return res;
   }
   const parser = new DOMParser();
@@ -141,7 +153,14 @@ export async function parseFeed(feedDoc: feed): Promise<feedByUrl | Error> {
 }
 /** 从块id 解析 feed 对象 */
 export async function parseFeedBlock(block_id: string) {
-  const feedObj: feed = { attr: {}, entryBlock: [] };
+  const feedObj: feed = {
+    attr: {},
+    entryBlock: [],
+    av_attr: {},
+    getAttr(key) {
+      return this.attr[key]?.value ?? this.av_attr[key];
+    },
+  };
   /** 寻找一个以 feed: 开头的子块。它将作为此 feed 的属性块，对它的子块进行解析，获取各种属性 */
   const feedAttrBlock = (
     await sqlQuery(
@@ -163,10 +182,10 @@ export async function parseFeedBlock(block_id: string) {
       WHERE
        parent_id="${block_id}" AND (markdown LIKE "* [ ] #%" OR markdown LIKE "* [X] #%")
       ORDER BY created DESC
-      LIMIT ${/** 避免笔记本中存在但没搜到，导致重复插入 */ MAX_FEED_NUM * 5}`,
+      LIMIT ${/** 避免笔记本中存在但没搜到，导致重复插入 */ MAX_FEED_NUM * 3}`,
     )
   ).data as block[];
-
+  Object.assign(feedObj.av_attr, await get_av_map(block_id));
   return feedObj;
 
   function blocksToObj(blocks: block[]) {
