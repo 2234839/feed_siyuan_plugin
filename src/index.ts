@@ -74,18 +74,17 @@ export default class FeedPlugin extends Plugin {
     });
     insertEntry.forEach(async (entry) => {
       console.log("insertBlock ", entry);
-      if (feedDoc.attrBlock?.id) {
-        let data = `* [ ] ###### [${entry.title ?? entry.link}](${entry.link})\n`;
-        if (entry.published) data += `    - published:${entry.published}\n`;
-        if (entry.updated) data += `    - updated:${entry.updated}\n`;
-        if (entry.summary) data += `    > ${entry.summary}\n`;
-        data += `  `;
-        insertBlock({
-          dataType: "markdown",
-          previousID: feedDoc.attrBlock.id,
-          data,
-        });
-      }
+      const previousID = feedDoc.attrBlock?.id ?? feedId;
+      let data = `* [ ] ###### [${entry.title ?? entry.link}](${entry.link})\n`;
+      if (entry.published) data += `    - published:${entry.published}\n`;
+      if (entry.updated) data += `    - updated:${entry.updated}\n`;
+      if (entry.summary) data += `    > ${entry.summary}\n`;
+      data += `  `;
+      insertBlock({
+        dataType: "markdown",
+        previousID,
+        data,
+      });
     });
   }
   async onunload() {
