@@ -30,7 +30,7 @@ export default class FeedPlugin extends Plugin {
         const feedDoc = await parseFeedBlock(block.block_id);
         if (feedDoc.getAttr("feed")) {
           const cron = feedDoc.getAttr("cron") ?? DEFAULT_CRON;
-          console.log(`注册 cron job 表达式:${cron} by ${cron}`, feedDoc);
+          console.log(`注册 cron job 表达式:${cron} by ${feedDoc.getAttr("feed")}`, feedDoc);
           const feedFetch = async () => {
             this.feedFetch(block.block_id);
           };
