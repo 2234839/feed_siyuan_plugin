@@ -37,7 +37,7 @@ export default class FeedPlugin extends Plugin {
           scheduleCronJob(cron, feedFetch);
           this._feedFetch.push(feedFetch);
         } else {
-          console.log(block, "没有读取到 feed 属性，请对照文档进行设定 feed");
+          console.log(feedDoc, "没有读取到 feed 属性，请对照文档进行设定 feed");
         }
       }),
     );

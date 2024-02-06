@@ -42,7 +42,7 @@ export function get_av_map(id: string) {
           return av.keyValues.map((kv) => {
             return {
               key: kv.key.name,
-              value: kv.values.find((v) => v.text.content)?.text.content,
+              value: kv.values.find((v) => v.text?.content)?.text?.content,
               avName: av.avName,
             };
           });
@@ -55,7 +55,6 @@ export function get_av_map(id: string) {
         }, {} as { [key: string]: string });
     });
 }
-
 
 interface database_av_key {
   id: string;
@@ -70,7 +69,7 @@ interface database_av_value {
   keyID: database_av_key["id"];
   blockID: string;
   type: "text";
-  text: {
+  text?: {
     content: "* * * * *";
   };
 }

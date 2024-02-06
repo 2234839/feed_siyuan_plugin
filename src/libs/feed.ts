@@ -161,10 +161,11 @@ export async function parseFeedBlock(block_id: string) {
       return this.attr[key]?.value ?? this.av_attr[key];
     },
   };
+
   /** 寻找一个以 feed: 开头的子块。它将作为此 feed 的属性块，对它的子块进行解析，获取各种属性 */
   const feedAttrBlock = (
     await sqlQuery(
-      `SELECT * FROM blocks WHERE parent_id="${block_id}" and content LIKE 'feed\:%' limit 1`,
+      `SELECT * FROM blocks WHERE parent_id="${block_id}" and fcontent LIKE 'feed:%' limit 1`,
     )
   ).data?.[0] as block;
   if (feedAttrBlock) {
@@ -186,6 +187,8 @@ export async function parseFeedBlock(block_id: string) {
     )
   ).data as block[];
   Object.assign(feedObj.av_attr, await get_av_map(block_id));
+
+
   return feedObj;
 
   function blocksToObj(blocks: block[]) {
@@ -193,7 +196,7 @@ export async function parseFeedBlock(block_id: string) {
       .map(
         (el) =>
           [
-            Array.from(el.content.match(/(.*?):([\s\S]+)/) ?? []) as [string, string, string],
+            Array.from(el.fcontent.match(/(.*?):([\s\S]+)/) ?? []) as [string, string, string],
             el,
           ] as const,
       )
