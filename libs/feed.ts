@@ -1,7 +1,6 @@
 import { fetchPost } from "siyuan";
-import { attributes, get_av_map } from "./siyuan_api";
-import { sqlQuery } from "./siyuan_api";
-import { FETCH_TIMEOUT, MAX_FEED_NUM, SUMMARY_LENGTH } from "@/libs/const";
+import { FETCH_TIMEOUT, MAX_FEED_NUM, SUMMARY_LENGTH } from "./const";
+import { get_av_map, sqlQuery, type attributes } from "./siyuan_api";
 
 interface block {
   alias: "";
@@ -145,7 +144,7 @@ export async function parseFeed(feedDoc: feed): Promise<feedByUrl | Error> {
       }),
     };
   } else {
-    console.log("rss解析失败", url);
+    console.log("rss解析失败",feedDoc, url);
     return new Error(
       `未知的格式，可以将此消息发送给开发者 admin@shenzilong.cn (feed_siyuan_plugin):${url}`,
     );
@@ -196,7 +195,7 @@ export async function parseFeedBlock(block_id: string) {
       .map(
         (el) =>
           [
-            Array.from(el.fcontent.match(/(.*?):([\s\S]+)/) ?? []) as [string, string, string],
+            Array.from(el.content.trim().match(/(.*?):([\s\S]+)/) ?? []) as [string, string, string],
             el,
           ] as const,
       )
